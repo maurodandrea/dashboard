@@ -189,7 +189,7 @@
           plugins: {
             title: {
               display: true,
-              text: `Issues per prodotto - Data: ${selectedDate}`,
+              text: `Issues per Prodotto - Data: ${selectedDate}`,
             },
           },
           scales: {
@@ -244,7 +244,7 @@
       chartAggregateByDate = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: sortedDates, // etichette date gg/mm/aaaa direttamente
+          labels: sortedDates,
           datasets: [
             {
               label: 'High',
@@ -271,7 +271,7 @@
           plugins: {
             title: {
               display: true,
-              text: selectedProduct === 'All' ? 'Issues totali per data (stacked)' : `Issues totali per data - Prodotto: ${selectedProduct}`,
+              text: selectedProduct === 'All' ? 'Issues totali per data (stacked)' : `Issues totali per Data - Prodotto: ${selectedProduct}`,
             },
             legend: {
               position: 'top',
