@@ -58,7 +58,7 @@
     <option value="All">All</option>
   </select>
 
-  <label>Issues totali per data (stacked)</label>
+  <label>Issues totali per Data</label>
   <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
 
   <script>
@@ -271,7 +271,7 @@
           plugins: {
             title: {
               display: true,
-              text: selectedProduct === 'All' ? 'Issues totali per data (stacked)' : `Issues totali per Data - Prodotto: ${selectedProduct}`,
+              text: selectedProduct === 'All' ? 'Issues totali per Data' : `Issues per Data - Prodotto: ${selectedProduct}`,
             },
             legend: {
               position: 'top',
