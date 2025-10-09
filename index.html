@@ -41,262 +41,380 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
       margin-top: 20px;
     }
+    /* Tab styles */
+    .tabs {
+      margin-top: 20px;
+      border-bottom: 2px solid #007bff;
+      display: flex;
+      gap: 10px;
+    }
+    .tab {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      background: #e9ecef;
+      user-select: none;
+      transition: background 0.3s ease;
+    }
+    .tab.active {
+      background: white;
+      border-color: #007bff #007bff white #007bff;
+      font-weight: bold;
+      color: #007bff;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <h2>Governance Dashboard</h2>
 
-  <label for="dateSelect">Seleziona la data</label>
-  <select id="dateSelect">
-    <option value="">-- Seleziona una data --</option>
-  </select>
+  <div class="tabs">
+    <div class="tab active" data-tab="byDate">Grafico per Data</div>
+    <div class="tab" data-tab="aggregated">Grafico Aggregato</div>
+  </div>
 
-  <canvas id="myChart" width="800" height="400"></canvas>
+  <!-- Contenitore per le combo, cambia a seconda del tab -->
+  <div id="filterContainer" style="margin-top: 20px;">
+    <!-- Qui verranno inserite dinamicamente le combo -->
+  </div>
 
-  <label for="productSelect">Seleziona il prodotto</label>
-  <select id="productSelect">
-    <option value="All">All</option>
-  </select>
+  <div id="byDate" class="tab-content active">
+    <canvas id="myChart" width="800" height="400"></canvas>
+  </div>
 
-  <label>Issues totali per Data</label>
-  <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
+  <div id="aggregated" class="tab-content">
+    <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
+  </div>
 
-  <script>
-    let allData = [];
-    let chartInstance = null;
-    let chartAggregateByDate = null;
+<script>
+  let allData = [];
+  let chartInstance = null;
+  let chartAggregateByDate = null;
 
-    const dateSelect = document.getElementById('dateSelect');
-    const productSelect = document.getElementById('productSelect');
+  const filterContainer = document.getElementById('filterContainer');
 
-    // Carica ed elabora il file Excel
-    fetch('Governance Dahsboard.xlsx')
-      .then(response => {
-        if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
-        return response.arrayBuffer();
-      })
-      .then(data => {
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = 'Dati';
-        const worksheet = workbook.Sheets[sheetName];
+  // Crea combo data (label + select)
+  const dateLabel = document.createElement('label');
+  dateLabel.setAttribute('for', 'dateSelect');
+  dateLabel.textContent = 'Seleziona la data';
+  const dateSelect = document.createElement('select');
+  dateSelect.id = 'dateSelect';
+  dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
 
-        if (!worksheet) {
-          alert('Foglio "Dati" non trovato!');
-          return;
-        }
+  // Crea combo prodotto (label + select)
+  const productLabel = document.createElement('label');
+  productLabel.setAttribute('for', 'productSelect');
+  productLabel.textContent = 'Seleziona il prodotto';
+  const productSelect = document.createElement('select');
+  productSelect.id = 'productSelect';
+  productSelect.innerHTML = '<option value="All">All</option>';
 
-        allData = XLSX.utils.sheet_to_json(worksheet).map(row => {
-          const formattedDate = row.data ? String(row.data).trim() : '';
-          const toNumber = val => {
-            const num = Number(val);
-            return isNaN(num) ? 0 : num;
-          };
+  // Tabs
+  const tabs = document.querySelectorAll('.tab');
+  const tabContents = document.querySelectorAll('.tab-content');
 
-          return {
-            ...row,
-            data: formattedDate,
-            issue_high: toNumber(row.issue_high),
-            issue_medium: toNumber(row.issue_medium),
-            issue_low: toNumber(row.issue_low)
-          };
-        });
+  function switchTab(tabName) {
+    tabs.forEach(t => t.classList.remove('active'));
+    tabContents.forEach(tc => tc.classList.remove('active'));
 
-        // Prepara lista date uniche ordinate (stringhe gg/mm/aaaa)
-        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
+    const activeTab = [...tabs].find(t => t.dataset.tab === tabName);
+    if (activeTab) activeTab.classList.add('active');
 
-        // Popola la combo date con date così come sono
-        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
-        uniqueDates.forEach(dateStr => {
-          const option = document.createElement('option');
-          option.value = dateStr;
-          option.textContent = dateStr;
-          dateSelect.appendChild(option);
-        });
+    const activeContent = document.getElementById(tabName);
+    if (activeContent) activeContent.classList.add('active');
 
-        // Popola lista prodotti unici + "All" per filtro
-        const uniqueProducts = [...new Set(allData.map(row => row.prodotto).filter(p => p && p.trim() !== ''))].sort();
-        productSelect.innerHTML = '<option value="All">All</option>';
-        uniqueProducts.forEach(prod => {
-          const option = document.createElement('option');
-          option.value = prod;
-          option.textContent = prod;
-          productSelect.appendChild(option);
-        });
-
-        // Seleziona di default la data più recente (ultima stringa ordinata)
-        if (uniqueDates.length > 0) {
-          const lastDate = uniqueDates[uniqueDates.length - 1];
-          dateSelect.value = lastDate;
-          renderChartForDate(lastDate);
-        }
-
-        renderAggregateByDateChart();
-      })
-      .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
-
-    dateSelect.addEventListener('change', () => {
-      const selectedDate = dateSelect.value;
-      if (selectedDate) {
-        renderChartForDate(selectedDate);
+    // Cambia il filtro mostrato
+    filterContainer.innerHTML = ''; // pulisce
+    if (tabName === 'byDate') {
+      // mostra combo date
+      filterContainer.appendChild(dateLabel);
+      filterContainer.appendChild(dateSelect);
+      // render grafico per data con la data selezionata (se presente)
+      if(dateSelect.value) {
+        renderChartForDate(dateSelect.value);
+      } else if(dateSelect.options.length > 1) {
+        // Se nessuna data selezionata, scegli l'ultima disponibile
+        dateSelect.value = dateSelect.options[dateSelect.options.length -1].value;
+        renderChartForDate(dateSelect.value);
       }
-    });
-
-    productSelect.addEventListener('change', () => {
+    } else if (tabName === 'aggregated') {
+      // mostra combo prodotto
+      filterContainer.appendChild(productLabel);
+      filterContainer.appendChild(productSelect);
       renderAggregateByDateChart();
+    }
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      switchTab(tab.dataset.tab);
+    });
+  });
+
+  // Carica ed elabora il file Excel
+  fetch('Governance Dahsboard.xlsx')
+    .then(response => {
+      if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
+      return response.arrayBuffer();
+    })
+    .then(data => {
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = 'Dati';
+      const worksheet = workbook.Sheets[sheetName];
+
+      if (!worksheet) {
+        alert('Foglio "Dati" non trovato!');
+        return;
+      }
+
+      allData = XLSX.utils.sheet_to_json(worksheet).map(row => {
+        const formattedDate = row.data ? String(row.data).trim() : '';
+        const toNumber = val => {
+          const num = Number(val);
+          return isNaN(num) ? 0 : num;
+        };
+
+        return {
+          ...row,
+          data: formattedDate,
+          issue_high: toNumber(row.issue_high),
+          issue_medium: toNumber(row.issue_medium),
+          issue_low: toNumber(row.issue_low)
+        };
+      });
+
+      // Prepara lista date uniche ordinate (stringhe gg/mm/aaaa)
+      const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
+
+      // Popola la combo date
+      dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+      uniqueDates.forEach(dateStr => {
+        const option = document.createElement('option');
+        option.value = dateStr;
+        option.textContent = dateStr;
+        dateSelect.appendChild(option);
+      });
+
+      // Popola lista prodotti unici + "All" per filtro
+      const uniqueProducts = [...new Set(allData.map(row => row.prodotto).filter(p => p && p.trim() !== ''))].sort();
+      productSelect.innerHTML = '<option value="All">All</option>';
+      uniqueProducts.forEach(prod => {
+        const option = document.createElement('option');
+        option.value = prod;
+        option.textContent = prod;
+        productSelect.appendChild(option);
+      });
+
+      // Di default, mostra combo date con data più recente selezionata e relativo grafico
+      if (uniqueDates.length > 0) {
+        dateSelect.value = uniqueDates[uniqueDates.length - 1];
+      }
+
+      // Inizializza tab corrente (default "byDate")
+      switchTab('byDate');
+    })
+    .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
+
+  dateSelect.addEventListener('change', () => {
+    if(dateSelect.value) {
+      renderChartForDate(dateSelect.value);
+    }
+  });
+
+  productSelect.addEventListener('change', () => {
+    renderAggregateByDateChart();
+  });
+
+  function renderChartForDate(selectedDate) {
+    const filtered = allData.filter(row =>
+      row.data === selectedDate && row.prodotto && row.prodotto.trim() !== ''
+    );
+
+    const labels = filtered.map(row => row.prodotto);
+    const highIssues = filtered.map(row => row.issue_high || 0);
+    const mediumIssues = filtered.map(row => row.issue_medium || 0);
+    const lowIssues = filtered.map(row => row.issue_low || 0);
+
+    const ctx = document.getElementById('myChart').getContext('2d');
+
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'High',
+            data: highIssues,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            stack: 'stack1',
+          },
+          {
+            label: 'Medium',
+            data: mediumIssues,
+            backgroundColor: 'rgba(255, 206, 86, 0.7)',
+            stack: 'stack1',
+          },
+          {
+            label: 'Low',
+            data: lowIssues,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+            stack: 'stack1',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: `Issues per Prodotto - Data: ${selectedDate}`,
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
+  function renderAggregateByDateChart() {
+    const selectedProduct = productSelect.value;
+    const aggregatedData = {};
+
+    allData.forEach(row => {
+      if (selectedProduct !== 'All' && row.prodotto !== selectedProduct) return;
+      if (!row.prodotto || row.prodotto.trim() === '') return;
+
+      const date = row.data;
+      if (!date) return;
+
+      if (!aggregatedData[date]) {
+        aggregatedData[date] = {
+          high: 0,
+          medium: 0,
+          low: 0
+        };
+      }
+
+      aggregatedData[date].high += row.issue_high || 0;
+      aggregatedData[date].medium += row.issue_medium || 0;
+      aggregatedData[date].low += row.issue_low || 0;
     });
 
-    function renderChartForDate(selectedDate) {
-      const filtered = allData.filter(row =>
-        row.data === selectedDate && row.prodotto && row.prodotto.trim() !== ''
-      );
+    const sortedDates = Object.keys(aggregatedData).sort();
 
-      const labels = filtered.map(row => row.prodotto);
-      const highIssues = filtered.map(row => row.issue_high || 0);
-      const mediumIssues = filtered.map(row => row.issue_medium || 0);
-      const lowIssues = filtered.map(row => row.issue_low || 0);
+    const highData = sortedDates.map(date => aggregatedData[date].high);
+    const mediumData = sortedDates.map(date => aggregatedData[date].medium);
+    const lowData = sortedDates.map(date => aggregatedData[date].low);
 
-      const ctx = document.getElementById('myChart').getContext('2d');
+    const ctx = document.getElementById('aggregateByDateChart').getContext('2d');
 
-      if (chartInstance) chartInstance.destroy();
+    if (chartAggregateByDate) chartAggregateByDate.destroy();
 
-      chartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [
-            {
-              label: 'High',
-              data: highIssues,
-              backgroundColor: 'rgba(255, 99, 132, 0.7)',
-              stack: 'stack1',
-            },
-            {
-              label: 'Medium',
-              data: mediumIssues,
-              backgroundColor: 'rgba(255, 206, 86, 0.7)',
-              stack: 'stack1',
-            },
-            {
-              label: 'Low',
-              data: lowIssues,
-              backgroundColor: 'rgba(75, 192, 192, 0.7)',
-              stack: 'stack1',
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: `Issues per Prodotto - Data: ${selectedDate}`,
-            },
-          },
-          scales: {
-            x: {
-              stacked: true,
-            },
-            y: {
-              stacked: true,
-              beginAtZero: true,
-            },
-          },
-        },
-      });
+    // Calcolo funzione di trend (lineare) per ciascun dataset
+    function computeTrendLine(data) {
+      const n = data.length;
+      const x = Array.from({ length: n }, (_, i) => i);
+      const sumX = x.reduce((a, b) => a + b, 0);
+      const sumY = data.reduce((a, b) => a + b, 0);
+      const sumXY = x.reduce((sum, xi, i) => sum + xi * data[i], 0);
+      const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+      const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+      const intercept = (sumY - slope * sumX) / n;
+      return x.map(xi => slope * xi + intercept);
     }
 
-    function renderAggregateByDateChart() {
-      const selectedProduct = productSelect.value;
-      const aggregatedData = {};
+    const trendHigh = computeTrendLine(highData);
+    const trendMedium = computeTrendLine(mediumData);
+    const trendLow = computeTrendLine(lowData);
 
-      allData.forEach(row => {
-        // Se filtro su prodotto diverso da All, includo solo righe di quel prodotto
-        if (selectedProduct !== 'All' && row.prodotto !== selectedProduct) return;
-
-        if (!row.prodotto || row.prodotto.trim() === '') return;
-
-        const date = row.data;
-        if (!date) return;
-
-        if (!aggregatedData[date]) {
-          aggregatedData[date] = {
-            high: 0,
-            medium: 0,
-            low: 0
-          };
-        }
-
-        aggregatedData[date].high += row.issue_high || 0;
-        aggregatedData[date].medium += row.issue_medium || 0;
-        aggregatedData[date].low += row.issue_low || 0;
-      });
-
-      const sortedDates = Object.keys(aggregatedData).sort();
-
-      const highData = sortedDates.map(date => aggregatedData[date].high);
-      const mediumData = sortedDates.map(date => aggregatedData[date].medium);
-      const lowData = sortedDates.map(date => aggregatedData[date].low);
-
-      const ctx = document.getElementById('aggregateByDateChart').getContext('2d');
-
-      if (chartAggregateByDate) chartAggregateByDate.destroy();
-
-      chartAggregateByDate = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: sortedDates,
-          datasets: [
-            {
-              label: 'High',
-              data: highData,
-              backgroundColor: 'rgba(255, 99, 132, 0.7)',
-              stack: 'stack1',
-            },
-            {
-              label: 'Medium',
-              data: mediumData,
-              backgroundColor: 'rgba(255, 206, 86, 0.7)',
-              stack: 'stack1',
-            },
-            {
-              label: 'Low',
-              data: lowData,
-              backgroundColor: 'rgba(75, 192, 192, 0.7)',
-              stack: 'stack1',
-            },
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            title: {
-              display: true,
-              text: selectedProduct === 'All' ? 'Issues totali per Data' : `Issues per Data - Prodotto: ${selectedProduct}`,
-            },
-            legend: {
-              position: 'top',
-            }
+    chartAggregateByDate = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sortedDates,
+        datasets: [
+          {
+            label: 'High',
+            data: highData,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            stack: 'stack1',
           },
-          scales: {
-            x: {
-              stacked: true,
-              title: {
-                display: true,
-                text: 'Data'
-              }
-            },
-            y: {
-              stacked: true,
-              beginAtZero: true,
-              title: {
-                display: true,
-                text: 'Totale Issues'
-              }
-            }
+          {
+            label: 'Medium',
+            data: mediumData,
+            backgroundColor: 'rgba(255, 206, 86, 0.7)',
+            stack: 'stack1',
+          },
+          {
+            label: 'Low',
+            data: lowData,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+            stack: 'stack1',
+          },
+          {
+            label: 'Trend High',
+            data: trendHigh,
+            type: 'line',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0,
+          },
+          {
+            label: 'Trend Medium',
+            data: trendMedium,
+            type: 'line',
+            borderColor: 'rgba(255, 206, 86, 1)',
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0,
+          },
+          {
+            label: 'Trend Low',
+            data: trendLow,
+            type: 'line',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0,
           }
-        }
-      });
-    }
-  </script>
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: selectedProduct === 'All' ? 'Issues totali per Data (Tutti i Prodotti)' : `Issues totali per Data - Prodotto: ${selectedProduct}`,
+          },
+        },
+        scales: {
+          x: {
+            stacked: true,
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+</script>
 </body>
 </html>
