@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
-  <h2>Grafico da Governance Dashboard.xlsx</h2>
+  <h2>Grafico Governance Dashboard</h2>
 
   <h3>Seleziona la data</h3>
   <select id="dateSelect">
@@ -22,7 +22,7 @@
 
     const dateSelect = document.getElementById('dateSelect');
 
-    fetch('Governance Dashboard.xlsx')
+    fetch('Governance Dahsboard.xlsx')
       .then(response => {
         if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
         return response.arrayBuffer();
