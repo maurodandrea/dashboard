@@ -136,7 +136,7 @@
       // mostra combo date
       filterContainer.appendChild(dateLabel);
       filterContainer.appendChild(dateSelect);
-      // render grafico per data con la data selezionata (se presente)
+      // render grafico per data con la data selezionata
       if(dateSelect.value) {
         renderChartForDate(dateSelect.value);
       } else if(dateSelect.options.length > 1) {
@@ -159,7 +159,7 @@
   });
 
   // Carica ed elabora il file Excel
-  fetch('Governance Dahsboard.xlsx')
+  fetch('Governance_Dashboard.xlsx')
     .then(response => {
       if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
       return response.arrayBuffer();
