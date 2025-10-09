@@ -53,6 +53,11 @@
 
   <canvas id="myChart" width="800" height="400"></canvas>
 
+  <label for="productSelect">Seleziona il prodotto</label>
+  <select id="productSelect">
+    <option value="All">All</option>
+  </select>
+
   <label>Issues totali per data (stacked)</label>
   <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
 
@@ -62,6 +67,7 @@
     let chartAggregateByDate = null;
 
     const dateSelect = document.getElementById('dateSelect');
+    const productSelect = document.getElementById('productSelect');
 
     // Carica ed elabora il file Excel
     fetch('Governance Dahsboard.xlsx')
@@ -78,9 +84,9 @@
           alert('Foglio "Dati" non trovato!');
           return;
         }
-        allData = XLSX.utils.sheet_to_json(worksheet).map(row => {
-          const rawDate = row.data;
 
+        allData = XLSX.utils.sheet_to_json(worksheet).map(row => {
+          const formattedDate = row.data ? String(row.data).trim() : '';
           const toNumber = val => {
             const num = Number(val);
             return isNaN(num) ? 0 : num;
@@ -88,17 +94,17 @@
 
           return {
             ...row,
-            data: rawDate,  // mantieni il formato originale
+            data: formattedDate,
             issue_high: toNumber(row.issue_high),
             issue_medium: toNumber(row.issue_medium),
             issue_low: toNumber(row.issue_low)
           };
         });
 
-        // Lista date uniche ordinate, come stringhe, semplicemente sort alfabetico
+        // Prepara lista date uniche ordinate (stringhe gg/mm/aaaa)
         const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
 
-        // Popola la select con le date così come sono
+        // Popola la combo date con date così come sono
         dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
         uniqueDates.forEach(dateStr => {
           const option = document.createElement('option');
@@ -107,7 +113,17 @@
           dateSelect.appendChild(option);
         });
 
-        // Seleziona di default la data più recente (ultima della lista ordinata)
+        // Popola lista prodotti unici + "All" per filtro
+        const uniqueProducts = [...new Set(allData.map(row => row.prodotto).filter(p => p && p.trim() !== ''))].sort();
+        productSelect.innerHTML = '<option value="All">All</option>';
+        uniqueProducts.forEach(prod => {
+          const option = document.createElement('option');
+          option.value = prod;
+          option.textContent = prod;
+          productSelect.appendChild(option);
+        });
+
+        // Seleziona di default la data più recente (ultima stringa ordinata)
         if (uniqueDates.length > 0) {
           const lastDate = uniqueDates[uniqueDates.length - 1];
           dateSelect.value = lastDate;
@@ -123,6 +139,10 @@
       if (selectedDate) {
         renderChartForDate(selectedDate);
       }
+    });
+
+    productSelect.addEventListener('change', () => {
+      renderAggregateByDateChart();
     });
 
     function renderChartForDate(selectedDate) {
@@ -186,10 +206,15 @@
     }
 
     function renderAggregateByDateChart() {
+      const selectedProduct = productSelect.value;
       const aggregatedData = {};
 
       allData.forEach(row => {
+        // Se filtro su prodotto diverso da All, includo solo righe di quel prodotto
+        if (selectedProduct !== 'All' && row.prodotto !== selectedProduct) return;
+
         if (!row.prodotto || row.prodotto.trim() === '') return;
+
         const date = row.data;
         if (!date) return;
 
@@ -219,7 +244,7 @@
       chartAggregateByDate = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: sortedDates,  // mostriamo date così come sono (originali)
+          labels: sortedDates, // etichette date gg/mm/aaaa direttamente
           datasets: [
             {
               label: 'High',
@@ -246,7 +271,7 @@
           plugins: {
             title: {
               display: true,
-              text: 'Issues totali per Data',
+              text: selectedProduct === 'All' ? 'Issues totali per data (stacked)' : `Issues totali per data - Prodotto: ${selectedProduct}`,
             },
             legend: {
               position: 'top',
