@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>Grafico da Excel filtrabile per data</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <h2>Carica il file Excel</h2>
+  <input type="file" id="fileInput" accept=".xlsx" />
+  
+  <h3>Seleziona la data</h3>
+  <select id="dateSelect">
+    <option value="">-- Seleziona una data --</option>
+  </select>
+
+  <canvas id="myChart" width="800" height="400"></canvas>
+
+  <script>
+    let allData = []; // Tutti i dati del foglio
+    let chartInstance = null;
+
+    const fileInput = document.getElementById('fileInput');
+    const dateSelect = document.getElementById('dateSelect');
+
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheetName = 'Dati';
+        const worksheet = workbook.Sheets[sheetName];
+
+        if (!worksheet) {
+          alert('Foglio "Dati" non trovato!');
+          return;
+        }
+
+        allData = XLSX.utils.sheet_to_json(worksheet);
+
+        // Popola il menu a tendina con le date uniche
+        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))];
+        uniqueDates.sort(); // Ordina cronologicamente
+
+        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+        uniqueDates.forEach(date => {
+          const option = document.createElement('option');
+          option.value = date;
+          option.textContent = date;
+          dateSelect.appendChild(option);
+        });
+      };
+
+      reader.readAsArrayBuffer(file);
+    });
+
+    // Quando cambia la selezione della data
+    dateSelect.addEventListener('change', function() {
+      const selectedDate = dateSelect.value;
+
+      if (!selectedDate) return;
+
+      const filtered = allData.filter(row => 
+        row.data === selectedDate && row.prodotto && row.prodotto.trim() !== ''
+      );
+
+      const labels = filtered.map(row => row.prodotto);
+      const highIssues = filtered.map(row => row.issue_high || 0);
+      const mediumIssues = filtered.map(row => row.issue_medium || 0);
+      const lowIssues = filtered.map(row => row.issue_low || 0);
+
+      const ctx = document.getElementById('myChart').getContext('2d');
+
+      // Distruggi il grafico precedente se esiste
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'High',
+              data: highIssues,
+              backgroundColor: 'rgba(255, 99, 132, 0.7)',
+              stack: 'stack1'
+            },
+            {
+              label: 'Medium',
+              data: mediumIssues,
+              backgroundColor: 'rgba(255, 206, 86, 0.7)',
+              stack: 'stack1'
+            },
+            {
+              label: 'Low',
+              data: lowIssues,
+              backgroundColor: 'rgba(75, 192, 192, 0.7)',
+              stack: 'stack1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: `Issues per prodotto - Data: ${selectedDate}`
+            }
+          },
+          scales: {
+            x: {
+              stacked: true
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
