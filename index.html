@@ -8,70 +8,124 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f4f4f4;
+      margin: 20px;
+      background: #f9f9f9;
       color: #333;
     }
-
     h2 {
-      color: #2c3e50;
+      margin-bottom: 10px;
     }
-
-    .form-group {
-      margin-bottom: 30px;
-      max-width: 300px;
-    }
-
     label {
-      display: block;
       font-weight: bold;
-      margin-bottom: 8px;
+      display: block;
+      margin-bottom: 6px;
+      margin-top: 20px;
     }
-
     select {
-      width: 100%;
-      padding: 10px;
+      padding: 8px 12px;
       font-size: 16px;
+      border-radius: 6px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: #fff;
-      transition: border-color 0.3s;
+      background: white;
+      min-width: 220px;
+      cursor: pointer;
+      transition: border-color 0.3s ease;
     }
-
-    select:focus {
-      border-color: #3498db;
+    select:hover, select:focus {
+      border-color: #007bff;
       outline: none;
     }
-
     canvas {
-      background-color: #fff;
-      border: 1px solid #ddd;
+      background: white;
       border-radius: 8px;
-      padding: 20px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
+  <h2>Governance Dashboard</h2>
 
-  <h2>Grafico Governance Dashboard</h2>
-
-  <div class="form-group">
-    <label for="dateSelect">Seleziona la data</label>
-    <select id="dateSelect">
-      <option value="">-- Seleziona una data --</option>
-    </select>
-  </div>
+  <label for="dateSelect">Seleziona la data</label>
+  <select id="dateSelect">
+    <option value="">-- Seleziona una data --</option>
+  </select>
 
   <canvas id="myChart" width="800" height="400"></canvas>
+
+  <label>Issues totali per data (stacked)</label>
+  <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
 
   <script>
     let allData = [];
     let chartInstance = null;
+    let chartAggregateByDate = null;
 
     const dateSelect = document.getElementById('dateSelect');
 
-    // Funzione per disegnare il grafico
-    function renderChart(selectedDate) {
+    // Carica ed elabora il file Excel
+    fetch('Governance Dahsboard.xlsx')
+      .then(response => {
+        if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
+        return response.arrayBuffer();
+      })
+      .then(data => {
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = 'Dati';
+        const worksheet = workbook.Sheets[sheetName];
+
+        if (!worksheet) {
+          alert('Foglio "Dati" non trovato!');
+          return;
+        }
+        allData = XLSX.utils.sheet_to_json(worksheet).map(row => {
+          const rawDate = row.data;
+
+          const toNumber = val => {
+            const num = Number(val);
+            return isNaN(num) ? 0 : num;
+          };
+
+          return {
+            ...row,
+            data: rawDate,  // mantieni il formato originale
+            issue_high: toNumber(row.issue_high),
+            issue_medium: toNumber(row.issue_medium),
+            issue_low: toNumber(row.issue_low)
+          };
+        });
+
+        // Lista date uniche ordinate, come stringhe, semplicemente sort alfabetico
+        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
+
+        // Popola la select con le date così come sono
+        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+        uniqueDates.forEach(dateStr => {
+          const option = document.createElement('option');
+          option.value = dateStr;
+          option.textContent = dateStr;
+          dateSelect.appendChild(option);
+        });
+
+        // Seleziona di default la data più recente (ultima della lista ordinata)
+        if (uniqueDates.length > 0) {
+          const lastDate = uniqueDates[uniqueDates.length - 1];
+          dateSelect.value = lastDate;
+          renderChartForDate(lastDate);
+        }
+
+        renderAggregateByDateChart();
+      })
+      .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
+
+    dateSelect.addEventListener('change', () => {
+      const selectedDate = dateSelect.value;
+      if (selectedDate) {
+        renderChartForDate(selectedDate);
+      }
+    });
+
+    function renderChartForDate(selectedDate) {
       const filtered = allData.filter(row =>
         row.data === selectedDate && row.prodotto && row.prodotto.trim() !== ''
       );
@@ -83,14 +137,12 @@
 
       const ctx = document.getElementById('myChart').getContext('2d');
 
-      if (chartInstance) {
-        chartInstance.destroy();
-      }
+      if (chartInstance) chartInstance.destroy();
 
       chartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: labels,
+          labels,
           datasets: [
             {
               label: 'High',
@@ -118,17 +170,94 @@
             title: {
               display: true,
               text: `Issues per prodotto - Data: ${selectedDate}`,
-              font: {
-                size: 18
-              }
             },
+          },
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    function renderAggregateByDateChart() {
+      const aggregatedData = {};
+
+      allData.forEach(row => {
+        if (!row.prodotto || row.prodotto.trim() === '') return;
+        const date = row.data;
+        if (!date) return;
+
+        if (!aggregatedData[date]) {
+          aggregatedData[date] = {
+            high: 0,
+            medium: 0,
+            low: 0
+          };
+        }
+
+        aggregatedData[date].high += row.issue_high || 0;
+        aggregatedData[date].medium += row.issue_medium || 0;
+        aggregatedData[date].low += row.issue_low || 0;
+      });
+
+      const sortedDates = Object.keys(aggregatedData).sort();
+
+      const highData = sortedDates.map(date => aggregatedData[date].high);
+      const mediumData = sortedDates.map(date => aggregatedData[date].medium);
+      const lowData = sortedDates.map(date => aggregatedData[date].low);
+
+      const ctx = document.getElementById('aggregateByDateChart').getContext('2d');
+
+      if (chartAggregateByDate) chartAggregateByDate.destroy();
+
+      chartAggregateByDate = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sortedDates,  // mostriamo date così come sono (originali)
+          datasets: [
+            {
+              label: 'High',
+              data: highData,
+              backgroundColor: 'rgba(255, 99, 132, 0.7)',
+              stack: 'stack1',
+            },
+            {
+              label: 'Medium',
+              data: mediumData,
+              backgroundColor: 'rgba(255, 206, 86, 0.7)',
+              stack: 'stack1',
+            },
+            {
+              label: 'Low',
+              data: lowData,
+              backgroundColor: 'rgba(75, 192, 192, 0.7)',
+              stack: 'stack1',
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Issues totali per Data',
+            },
+            legend: {
+              position: 'top',
+            }
           },
           scales: {
             x: {
               stacked: true,
               title: {
                 display: true,
-                text: 'Prodotto'
+                text: 'Data'
               }
             },
             y: {
@@ -136,58 +265,13 @@
               beginAtZero: true,
               title: {
                 display: true,
-                text: 'Numero di Issues'
+                text: 'Totale Issues'
               }
-            },
-          },
-        },
+            }
+          }
+        }
       });
     }
-
-    // Caricamento dati da Excel
-    fetch('Governance Dahsboard.xlsx')
-      .then(response => {
-        if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
-        return response.arrayBuffer();
-      })
-      .then(data => {
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = 'Dati';
-        const worksheet = workbook.Sheets[sheetName];
-
-        if (!worksheet) {
-          alert('Foglio "Dati" non trovato!');
-          return;
-        }
-
-        allData = XLSX.utils.sheet_to_json(worksheet);
-
-        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
-
-        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
-        uniqueDates.forEach(date => {
-          const option = document.createElement('option');
-          option.value = date;
-          option.textContent = date;
-          dateSelect.appendChild(option);
-        });
-
-        // Imposta la data più recente come selezionata
-        const defaultDate = uniqueDates[uniqueDates.length - 1];
-        dateSelect.value = defaultDate;
-
-        // Mostra subito il grafico per la data più recente
-        renderChart(defaultDate);
-      })
-      .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
-
-    // Al cambio selezione
-    dateSelect.addEventListener('change', function () {
-      const selectedDate = dateSelect.value;
-      if (selectedDate) {
-        renderChart(selectedDate);
-      }
-    });
   </script>
 </body>
 </html>
