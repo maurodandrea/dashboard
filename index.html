@@ -5,14 +5,62 @@
   <title>Governance Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+
+    h2 {
+      color: #2c3e50;
+    }
+
+    .form-group {
+      margin-bottom: 30px;
+      max-width: 300px;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+      transition: border-color 0.3s;
+    }
+
+    select:focus {
+      border-color: #3498db;
+      outline: none;
+    }
+
+    canvas {
+      background-color: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+    }
+  </style>
 </head>
 <body>
+
   <h2>Grafico Governance Dashboard</h2>
 
-  <h3>Seleziona la data</h3>
-  <select id="dateSelect">
-    <option value="">-- Seleziona una data --</option>
-  </select>
+  <div class="form-group">
+    <label for="dateSelect">Seleziona la data</label>
+    <select id="dateSelect">
+      <option value="">-- Seleziona una data --</option>
+    </select>
+  </div>
 
   <canvas id="myChart" width="800" height="400"></canvas>
 
@@ -22,39 +70,8 @@
 
     const dateSelect = document.getElementById('dateSelect');
 
-    fetch('Governance Dahsboard.xlsx')
-      .then(response => {
-        if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
-        return response.arrayBuffer();
-      })
-      .then(data => {
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = 'Dati';
-        const worksheet = workbook.Sheets[sheetName];
-
-        if (!worksheet) {
-          alert('Foglio "Dati" non trovato!');
-          return;
-        }
-
-        allData = XLSX.utils.sheet_to_json(worksheet);
-
-        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
-
-        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
-        uniqueDates.forEach(date => {
-          const option = document.createElement('option');
-          option.value = date;
-          option.textContent = date;
-          dateSelect.appendChild(option);
-        });
-      })
-      .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
-
-    dateSelect.addEventListener('change', function() {
-      const selectedDate = dateSelect.value;
-      if (!selectedDate) return;
-
+    // Funzione per disegnare il grafico
+    function renderChart(selectedDate) {
       const filtered = allData.filter(row =>
         row.data === selectedDate && row.prodotto && row.prodotto.trim() !== ''
       );
@@ -101,19 +118,75 @@
             title: {
               display: true,
               text: `Issues per prodotto - Data: ${selectedDate}`,
+              font: {
+                size: 18
+              }
             },
           },
           scales: {
             x: {
               stacked: true,
+              title: {
+                display: true,
+                text: 'Prodotto'
+              }
             },
             y: {
               stacked: true,
               beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Numero di Issues'
+              }
             },
           },
         },
       });
+    }
+
+    // Caricamento dati da Excel
+    fetch('Governance Dahsboard.xlsx')
+      .then(response => {
+        if (!response.ok) throw new Error('File non trovato o errore nel caricamento');
+        return response.arrayBuffer();
+      })
+      .then(data => {
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = 'Dati';
+        const worksheet = workbook.Sheets[sheetName];
+
+        if (!worksheet) {
+          alert('Foglio "Dati" non trovato!');
+          return;
+        }
+
+        allData = XLSX.utils.sheet_to_json(worksheet);
+
+        const uniqueDates = [...new Set(allData.map(row => row.data).filter(d => d))].sort();
+
+        dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+        uniqueDates.forEach(date => {
+          const option = document.createElement('option');
+          option.value = date;
+          option.textContent = date;
+          dateSelect.appendChild(option);
+        });
+
+        // Imposta la data più recente come selezionata
+        const defaultDate = uniqueDates[uniqueDates.length - 1];
+        dateSelect.value = defaultDate;
+
+        // Mostra subito il grafico per la data più recente
+        renderChart(defaultDate);
+      })
+      .catch(err => alert('Errore nel caricamento del file Excel: ' + err));
+
+    // Al cambio selezione
+    dateSelect.addEventListener('change', function () {
+      const selectedDate = dateSelect.value;
+      if (selectedDate) {
+        renderChart(selectedDate);
+      }
     });
   </script>
 </body>
