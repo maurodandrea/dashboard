@@ -11,7 +11,7 @@
             --pa-primary: #0066cc; 
             --bg-page: #eef1f4; 
             --bg-card: white;
-            --text-dark: #1a3a5a; 
+            --text-dark: #1a3a5a; /* Blu scuro professionale per tutti i testi */
             --shadow-elevation: 0 4px 15px rgba(0, 0, 0, 0.08);
             --transition-speed: 0.3s;
 
@@ -28,7 +28,7 @@
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             margin: 0;
-            padding-top: 70px; 
+            padding-top: 65px; 
             background: var(--bg-page);
             color: var(--text-dark);
             line-height: 1.6;
@@ -39,7 +39,7 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 60px; 
+            height: 55px; 
             background: var(--bg-card);
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             z-index: 1000;
@@ -57,7 +57,7 @@
         .container {
             max-width: 98%; 
             width: 100%;
-            margin: 10px auto;
+            margin: 5px auto;
             padding: 0 10px; 
             box-sizing: border-box;
         }
@@ -65,6 +65,7 @@
         .tabs {
             display: flex;
             border-bottom: 2px solid #ccc;
+            /* Re-introdotto un minimo di spazio tra tab e filtri */
             margin-bottom: 10px; 
         }
 
@@ -98,7 +99,8 @@
             display: flex;
             gap: 30px;
             align-items: flex-end;
-            padding: 10px 0; 
+            /* Spazio minimo sotto i filtri */
+            padding: 0 0 10px 0; 
         }
 
         .filter-group { min-width: 200px; }
@@ -107,6 +109,7 @@
             font-weight: 600;
             display: block;
             margin-bottom: 6px;
+            /* Usa il blu scuro professionale */
             color: var(--text-dark);
             font-size: 14px;
         }
@@ -120,6 +123,13 @@
             width: 100%;
             cursor: pointer;
             transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+            /* Imposta il colore del testo della select al blu scuro */
+            color: var(--text-dark); 
+        }
+
+        /* Colore delle opzioni all'interno del select (opzionale, per coerenza) */
+        select option {
+            color: var(--text-dark);
         }
         
         .tab-content { display: none; }
@@ -178,6 +188,8 @@
     let chartAggregateByDate = null;
     let chartTrendLines = null;
 
+    const DARK_BLUE = '#1a3a5a'; 
+
     const COLORS = {
         High: { fill: 'rgba(255, 160, 160, 0.3)', border: '#FFA0A0' }, 
         Medium: { fill: 'rgba(255, 230, 150, 0.3)', border: '#FFE696' }, 
@@ -223,16 +235,24 @@
         plugins: {
             legend: {
                 position: 'top', 
-                labels: { usePointStyle: false, padding: 25, boxWidth: 20, color: '#333' } 
+                // Colore legenda in blu scuro
+                labels: { usePointStyle: false, padding: 25, boxWidth: 20, color: DARK_BLUE } 
             },
-            title: { display: true, font: { size: 18, weight: '700' }, padding: 15, color: '#333' },
+            title: { 
+                display: true, 
+                font: { size: 18, weight: '700' }, 
+                padding: 15, 
+                // Colore titolo in blu scuro
+                color: DARK_BLUE 
+            },
             tooltip: customTooltipCallback 
         },
         scales: {
             x: { 
                 grid: { display: false, drawBorder: false }, 
                 ticks: { 
-                    color: '#555',
+                    // Colore asse X in blu scuro
+                    color: DARK_BLUE,
                     maxRotation: 45, 
                     minRotation: 45 
                 } 
@@ -240,7 +260,10 @@
             y: { 
                 beginAtZero: true, 
                 grid: { color: 'rgba(0, 0, 0, 0.05)', borderDash: [5, 5] },
-                ticks: { color: '#555' } 
+                ticks: { 
+                    // Colore asse Y in blu scuro
+                    color: DARK_BLUE
+                } 
             }
         },
         interaction: {
@@ -298,7 +321,7 @@
             dateSelect.value = uniqueDates.at(-1) || '';
             switchTab('byDate');
         })
-        .catch(error => console.error('Errore nel caricamento del file Dati:', error));
+        .catch(error => console.error('Errore nel caricamento del file Excel:', error));
 
     dateSelect.addEventListener('change', () => renderChartForDate(dateSelect.value));
     productSelect.addEventListener('change', () => {
