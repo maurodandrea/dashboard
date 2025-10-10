@@ -1,284 +1,442 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <title>Governance Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f9f9f9;
-      color: #333;
-    }
-    h2 { margin-bottom: 10px; }
-    label {
-      font-weight: bold;
-      display: block;
-      margin-bottom: 6px;
-      margin-top: 20px;
-    }
-    select {
-      padding: 8px 12px;
-      font-size: 16px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      background: white;
-      min-width: 220px;
-      cursor: pointer;
-      transition: border-color 0.3s ease;
-    }
-    select:hover, select:focus {
-      border-color: #007bff;
-      outline: none;
-    }
-    canvas {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-      margin-top: 20px;
-    }
-    .tabs {
-      margin-top: 20px;
-      border-bottom: 2px solid #007bff;
-      display: flex;
-      gap: 10px;
-    }
-    .tab {
-      padding: 10px 20px;
-      cursor: pointer;
-      border: 1px solid transparent;
-      border-bottom: none;
-      border-radius: 6px 6px 0 0;
-      background: #e9ecef;
-      user-select: none;
-      transition: background 0.3s ease;
-    }
-    .tab.active {
-      background: white;
-      border-color: #007bff #007bff white #007bff;
-      font-weight: bold;
-      color: #007bff;
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Governance Dashboard | pagoPA</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --pa-primary: #0066cc; 
+            --bg-page: #eef1f4; 
+            --bg-card: white;
+            --text-dark: #1a3a5a; 
+            --shadow-elevation: 0 4px 15px rgba(0, 0, 0, 0.08);
+            --transition-speed: 0.3s;
+
+            --issue-high-fill: rgba(255, 160, 160, 0.3);   
+            --issue-high-border: #FFA0A0;               
+            
+            --issue-medium-fill: rgba(255, 230, 150, 0.3); 
+            --issue-medium-border: #FFE696;             
+            
+            --issue-low-fill: rgba(135, 206, 250, 0.3);    
+            --issue-low-border: #87CEFA;                 
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding-top: 70px; 
+            background: var(--bg-page);
+            color: var(--text-dark);
+            line-height: 1.6;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px; 
+            background: var(--bg-card);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+        }
+
+        .header-title { 
+            font-size: 26px;
+            font-weight: 700;
+            color: var(--pa-primary);
+        }
+        
+        .container {
+            max-width: 98%; 
+            width: 100%;
+            margin: 10px auto;
+            padding: 0 10px; 
+            box-sizing: border-box;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ccc;
+            margin-bottom: 10px; 
+        }
+
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            color: #7f8c8d;
+            font-size: 16px;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all var(--transition-speed) ease-in-out;
+            margin-right: 5px;
+        }
+
+        .tab:hover { color: var(--pa-primary); }
+
+        .tab.active {
+            color: var(--pa-primary);
+            border-bottom-color: var(--pa-primary);
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: 10px;
+            box-shadow: var(--shadow-elevation);
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        
+        #filterContainer {
+            display: flex;
+            gap: 30px;
+            align-items: flex-end;
+            padding: 10px 0; 
+        }
+
+        .filter-group { min-width: 200px; }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text-dark);
+            font-size: 14px;
+        }
+
+        select {
+            padding: 10px 15px;
+            font-size: 15px;
+            border-radius: 6px;
+            border: 1px solid #bdc3c7;
+            background: white;
+            width: 100%;
+            cursor: pointer;
+            transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
+        }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .chart-container {
+            position: relative;
+            height: 75vh; 
+            min-height: 600px; 
+        }
+    </style>
 </head>
 <body>
-  <h2>Governance Dashboard</h2>
+    <header>
+        <div class="header-title">
+            Governance Dashboard
+        </div>
+    </header>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="byDate">Grafico per Data</div>
-    <div class="tab" data-tab="aggregated">Grafico per Prodotto</div>
-    <div class="tab" data-tab="trendLines">Grafico di Tendenza</div>
-  </div>
+    <div class="container">
+        <div class="tabs">
+            <div class="tab active" data-tab="byDate">Grafico per Data</div>
+            <div class="tab" data-tab="aggregated">Grafico per Prodotto</div>
+            <div class="tab" data-tab="trendLines">Grafico di Tendenza</div>
+        </div>
 
-  <div id="filterContainer" style="margin-top: 20px;"></div>
+        <div id="filterContainer"></div>
 
-  <div id="byDate" class="tab-content active">
-    <canvas id="myChart" width="800" height="400"></canvas>
-  </div>
+        <div id="byDate" class="tab-content active">
+            <div class="card">
+                <div class="chart-container">
+                    <canvas id="myChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-  <div id="aggregated" class="tab-content">
-    <canvas id="aggregateByDateChart" width="800" height="400"></canvas>
-  </div>
+        <div id="aggregated" class="tab-content">
+            <div class="card">
+                <div class="chart-container">
+                    <canvas id="aggregateByDateChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-  <div id="trendLines" class="tab-content">
-    <canvas id="trendLineChart" width="800" height="400"></canvas>
-  </div>
+        <div id="trendLines" class="tab-content">
+            <div class="card">
+                <div class="chart-container">
+                    <canvas id="trendLineChart"></canvas>
+                </div>
+            </div>
+        </div>
 
 <script>
-  let allData = [];
-  let chartInstance = null;
-  let chartAggregateByDate = null;
-  let chartTrendLines = null;
+    let allData = [];
+    let chartInstance = null;
+    let chartAggregateByDate = null;
+    let chartTrendLines = null;
 
-  const filterContainer = document.getElementById('filterContainer');
+    const COLORS = {
+        High: { fill: 'rgba(255, 160, 160, 0.3)', border: '#FFA0A0' }, 
+        Medium: { fill: 'rgba(255, 230, 150, 0.3)', border: '#FFE696' }, 
+        Low: { fill: 'rgba(135, 206, 250, 0.3)', border: '#87CEFA' } 
+    };
 
-  const dateLabel = document.createElement('label');
-  dateLabel.textContent = 'Seleziona la data';
-  const dateSelect = document.createElement('select');
-  dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+    const filterContainer = document.getElementById('filterContainer');
+    const dateGroup = document.createElement('div');
+    dateGroup.className = 'filter-group';
+    const dateLabel = document.createElement('label');
+    dateLabel.textContent = 'Seleziona la data:';
+    const dateSelect = document.createElement('select');
+    dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
+    dateGroup.appendChild(dateLabel);
+    dateGroup.appendChild(dateSelect);
 
-  const productLabel = document.createElement('label');
-  productLabel.textContent = 'Seleziona il prodotto';
-  const productSelect = document.createElement('select');
-  productSelect.innerHTML = '<option value="All">All</option>';
+    const productGroup = document.createElement('div');
+    productGroup.className = 'filter-group';
+    const productLabel = document.createElement('label');
+    productLabel.textContent = 'Seleziona il prodotto:';
+    const productSelect = document.createElement('select');
+    productSelect.innerHTML = '<option value="All">All</option>';
+    productGroup.appendChild(productLabel);
+    productGroup.appendChild(productSelect);
 
-  const tabs = document.querySelectorAll('.tab');
-  const tabContents = document.querySelectorAll('.tab-content');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
 
-  function switchTab(tabName) {
-    tabs.forEach(t => t.classList.remove('active'));
-    tabContents.forEach(tc => tc.classList.remove('active'));
-    document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
-    document.getElementById(tabName).classList.add('active');
+    const customTooltipCallback = {
+        callbacks: {
+            footer: function(tooltipItems) {
+                const total = tooltipItems.reduce((sum, current) => {
+                    return sum + current.parsed.y;
+                }, 0);
+                return 'Totale: ' + total;
+            }
+        }
+    };
 
-    filterContainer.innerHTML = '';
-    if (tabName === 'byDate') {
-      filterContainer.appendChild(dateLabel);
-      filterContainer.appendChild(dateSelect);
-      if (dateSelect.value) renderChartForDate(dateSelect.value);
-    } else if (tabName === 'aggregated') {
-      filterContainer.appendChild(productLabel);
-      filterContainer.appendChild(productSelect);
-      renderAggregateByDateChart();
-    } else if (tabName === 'trendLines') {
-      filterContainer.appendChild(productLabel);
-      filterContainer.appendChild(productSelect);
-      renderTrendLinesChart();
+    const baseChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top', 
+                labels: { usePointStyle: false, padding: 25, boxWidth: 20, color: '#333' } 
+            },
+            title: { display: true, font: { size: 18, weight: '700' }, padding: 15, color: '#333' },
+            tooltip: customTooltipCallback 
+        },
+        scales: {
+            x: { 
+                grid: { display: false, drawBorder: false }, 
+                ticks: { 
+                    color: '#555',
+                    maxRotation: 45, 
+                    minRotation: 45 
+                } 
+            },
+            y: { 
+                beginAtZero: true, 
+                grid: { color: 'rgba(0, 0, 0, 0.05)', borderDash: [5, 5] },
+                ticks: { color: '#555' } 
+            }
+        },
+        interaction: {
+            mode: 'index', 
+            intersect: false,
+        }
+    };
+
+    function switchTab(tabName) {
+        tabs.forEach(t => t.classList.remove('active'));
+        tabContents.forEach(tc => tc.classList.remove('active'));
+        document.querySelector(`.tab[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(tabName).classList.add('active');
+
+        filterContainer.innerHTML = '';
+        if (tabName === 'byDate') {
+            filterContainer.appendChild(dateGroup);
+            if (dateSelect.value) renderChartForDate(dateSelect.value);
+        } else {
+            filterContainer.appendChild(productGroup);
+            if (tabName === 'aggregated') renderAggregateByDateChart();
+            else if (tabName === 'trendLines') renderTrendLinesChart();
+        }
     }
-  }
 
-  tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
+    tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 
-  fetch('Governance_Dashboard.xlsx')
-    .then(response => response.arrayBuffer())
-    .then(data => {
-      const workbook = XLSX.read(data, { type: 'array' });
-      const sheet = workbook.Sheets['Dati'];
-      allData = XLSX.utils.sheet_to_json(sheet).map(r => ({
-        ...r,
-        data: String(r.data).trim(),
-        issue_high: +r.issue_high || 0,
-        issue_medium: +r.issue_medium || 0,
-        issue_low: +r.issue_low || 0
-      }));
+    fetch('Governance_Dashboard.xlsx')
+        .then(response => response.arrayBuffer())
+        .then(data => {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets['Dati']; 
+            allData = XLSX.utils.sheet_to_json(sheet).map(r => ({
+                ...r,
+                data: String(r.data).trim(),
+                issue_high: +r.issue_high || 0,
+                issue_medium: +r.issue_medium || 0,
+                issue_low: +r.issue_low || 0
+            })).filter(r => r.prodotto && r.prodotto.trim() !== '');
 
-      const uniqueDates = [...new Set(allData.map(r => r.data))].sort();
-      const uniqueProducts = [...new Set(allData.map(r => r.prodotto).filter(Boolean))].sort();
+            const uniqueDates = [...new Set(allData.map(r => r.data))].sort();
+            const uniqueProducts = [...new Set(allData.map(r => r.prodotto))].sort();
 
-      dateSelect.innerHTML = '<option value="">-- Seleziona una data --</option>';
-      uniqueDates.forEach(d => {
-        const opt = document.createElement('option');
-        opt.value = d; opt.textContent = d;
-        dateSelect.appendChild(opt);
-      });
-      productSelect.innerHTML = '<option value="All">All</option>';
-      uniqueProducts.forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p; opt.textContent = p;
-        productSelect.appendChild(opt);
-      });
+            uniqueDates.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d; opt.textContent = d;
+                dateSelect.appendChild(opt);
+            });
+            uniqueProducts.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p; opt.textContent = p;
+                productSelect.appendChild(opt);
+            });
 
-      dateSelect.value = uniqueDates.at(-1);
-      switchTab('byDate');
+            dateSelect.value = uniqueDates.at(-1) || '';
+            switchTab('byDate');
+        })
+        .catch(error => console.error('Errore nel caricamento del file Dati:', error));
+
+    dateSelect.addEventListener('change', () => renderChartForDate(dateSelect.value));
+    productSelect.addEventListener('change', () => {
+        const currentTab = document.querySelector('.tab.active').dataset.tab;
+        if (currentTab === 'trendLines') renderTrendLinesChart();
+        else if (currentTab === 'aggregated') renderAggregateByDateChart();
     });
 
-  dateSelect.addEventListener('change', () => renderChartForDate(dateSelect.value));
-  productSelect.addEventListener('change', () => {
-    const currentTab = document.querySelector('.tab.active').dataset.tab;
-    if (currentTab === 'trendLines') renderTrendLinesChart();
-    else renderAggregateByDateChart();
-  });
+    function renderChartForDate(selectedDate) {
+        if (!selectedDate) {
+            if (chartInstance) chartInstance.destroy();
+            return;
+        }
 
-  // --- GRAFICO 1: Barre per data
-  function renderChartForDate(selectedDate) {
-    const filtered = allData.filter(r => r.data === selectedDate && r.prodotto && r.prodotto.trim() !== '');
-    const labels = filtered.map(r => r.prodotto);
-    const high = filtered.map(r => r.issue_high);
-    const med = filtered.map(r => r.issue_medium);
-    const low = filtered.map(r => r.issue_low);
+        const filteredByDate = allData.filter(r => r.data === selectedDate);
+        
+        const aggregatedByProduct = {};
+        filteredByDate.forEach(item => {
+            if (!aggregatedByProduct[item.prodotto]) {
+                aggregatedByProduct[item.prodotto] = { issue_high: 0, issue_medium: 0, issue_low: 0 };
+            }
+            aggregatedByProduct[item.prodotto].issue_high += item.issue_high;
+            aggregatedByProduct[item.prodotto].issue_medium += item.issue_medium;
+            aggregatedByProduct[item.prodotto].issue_low += item.issue_low;
+        });
 
-    const ctx = document.getElementById('myChart').getContext('2d');
-    if (chartInstance) chartInstance.destroy();
+        const labels = Object.keys(aggregatedByProduct).sort();
+        const high = labels.map(p => aggregatedByProduct[p].issue_high);
+        const med = labels.map(p => aggregatedByProduct[p].issue_medium);
+        const low = labels.map(p => aggregatedByProduct[p].issue_low);
 
-    chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [
-          { label: 'High', data: high, backgroundColor: 'rgba(255,99,132,0.7)', stack: 'stack1' },
-          { label: 'Medium', data: med, backgroundColor: 'rgba(255,206,86,0.7)', stack: 'stack1' },
-          { label: 'Low', data: low, backgroundColor: 'rgba(75,192,192,0.7)', stack: 'stack1' }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { title: { display: true, text: `Issues per Prodotto - Data: ${selectedDate}` } },
-        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
-      }
-    });
-  }
+        const ctx = document.getElementById('myChart').getContext('2d');
+        if (chartInstance) chartInstance.destroy();
 
-  // --- GRAFICO 2: Barre per data aggregata
-  function renderAggregateByDateChart() {
-    const selectedProduct = productSelect.value;
-    const agg = {};
-    allData.forEach(r => {
-      if (selectedProduct !== 'All' && r.prodotto !== selectedProduct) return;
-      if (!r.prodotto || !r.data) return;
-      if (!agg[r.data]) agg[r.data] = { high: 0, medium: 0, low: 0 };
-      agg[r.data].high += r.issue_high;
-      agg[r.data].medium += r.issue_medium;
-      agg[r.data].low += r.issue_low;
-    });
+        chartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label: 'High', data: high, backgroundColor: COLORS.High.border, stack: 'stack1', borderRadius: 4 },
+                    { label: 'Medium', data: med, backgroundColor: COLORS.Medium.border, stack: 'stack1', borderRadius: 4 },
+                    { label: 'Low', data: low, backgroundColor: COLORS.Low.border, stack: 'stack1', borderRadius: 4 }
+                ]
+            },
+            options: {
+                ...baseChartOptions,
+                plugins: { ...baseChartOptions.plugins, title: { ...baseChartOptions.plugins.title, text: `Issues per Prodotto - Data: ${selectedDate}` } },
+                scales: {
+                    x: { ...baseChartOptions.scales.x, stacked: true },
+                    y: { ...baseChartOptions.scales.y, stacked: true }
+                }
+            }
+        });
+    }
 
-    const dates = Object.keys(agg).sort();
-    const high = dates.map(d => agg[d].high);
-    const med = dates.map(d => agg[d].medium);
-    const low = dates.map(d => agg[d].low);
+    function renderAggregateByDateChart() {
+        const selectedProduct = productSelect.value;
+        const agg = {};
+        
+        allData.forEach(r => {
+            if (selectedProduct !== 'All' && r.prodotto !== selectedProduct) return;
+            if (!agg[r.data]) agg[r.data] = { high: 0, medium: 0, low: 0 };
+            agg[r.data].high += r.issue_high;
+            agg[r.data].medium += r.issue_medium;
+            agg[r.data].low += r.issue_low;
+        });
 
-    const ctx = document.getElementById('aggregateByDateChart').getContext('2d');
-    if (chartAggregateByDate) chartAggregateByDate.destroy();
+        const dates = Object.keys(agg).sort();
+        const high = dates.map(d => agg[d].high);
+        const med = dates.map(d => agg[d].medium);
+        const low = dates.map(d => agg[d].low);
+        const chartTitle = selectedProduct === 'All' ? 'Issues totali per Data - Tutti i Prodotti' : `Issues totali per Data - ${selectedProduct}`;
 
-    chartAggregateByDate = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: dates,
-        datasets: [
-          { label: 'High', data: high, backgroundColor: 'rgba(255,99,132,0.7)', stack: 'stack1' },
-          { label: 'Medium', data: med, backgroundColor: 'rgba(255,206,86,0.7)', stack: 'stack1' },
-          { label: 'Low', data: low, backgroundColor: 'rgba(75,192,192,0.7)', stack: 'stack1' }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { title: { display: true, text: selectedProduct === 'All' ? 'Issues totali per Data - Tutti i Prodotti' : `Issues totali per Data - ${selectedProduct}` } },
-        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
-      }
-    });
-  }
+        const ctx = document.getElementById('aggregateByDateChart').getContext('2d');
+        if (chartAggregateByDate) chartAggregateByDate.destroy();
 
-  // --- GRAFICO 3: Linee di tendenza curve
-  function renderTrendLinesChart() {
-    const selectedProduct = productSelect.value;
-    const agg = {};
-    allData.forEach(r => {
-      if (selectedProduct !== 'All' && r.prodotto !== selectedProduct) return;
-      if (!r.prodotto || !r.data) return;
-      if (!agg[r.data]) agg[r.data] = { high: 0, medium: 0, low: 0 };
-      agg[r.data].high += r.issue_high;
-      agg[r.data].medium += r.issue_medium;
-      agg[r.data].low += r.issue_low;
-    });
+        chartAggregateByDate = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [
+                    { label: 'High', data: high, backgroundColor: COLORS.High.border, stack: 'stack1', borderRadius: 2 },
+                    { label: 'Medium', data: med, backgroundColor: COLORS.Medium.border, stack: 'stack1', borderRadius: 2 },
+                    { label: 'Low', data: low, backgroundColor: COLORS.Low.border, stack: 'stack1', borderRadius: 2 }
+                ]
+            },
+            options: {
+                ...baseChartOptions,
+                plugins: { ...baseChartOptions.plugins, title: { ...baseChartOptions.plugins.title, text: chartTitle } },
+                scales: {
+                    x: { ...baseChartOptions.scales.x, stacked: true },
+                    y: { ...baseChartOptions.scales.y, stacked: true }
+                }
+            }
+        });
+    }
 
-    const dates = Object.keys(agg).sort();
-    const high = dates.map(d => agg[d].high);
-    const med = dates.map(d => agg[d].medium);
-    const low = dates.map(d => agg[d].low);
+    function renderTrendLinesChart() {
+        const selectedProduct = productSelect.value;
+        const agg = {};
 
-    const ctx = document.getElementById('trendLineChart').getContext('2d');
-    if (chartTrendLines) chartTrendLines.destroy();
+        allData.forEach(r => {
+            if (selectedProduct !== 'All' && r.prodotto !== selectedProduct) return;
+            if (!agg[r.data]) agg[r.data] = { high: 0, medium: 0, low: 0 };
+            agg[r.data].high += r.issue_high;
+            agg[r.data].medium += r.issue_medium;
+            agg[r.data].low += r.issue_low;
+        });
 
-    chartTrendLines = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: dates,
-        datasets: [
-          { label: 'High', data: high, borderColor: 'rgba(255,99,132,1)', tension: 0.4, borderWidth: 2, fill: false },
-          { label: 'Medium', data: med, borderColor: 'rgba(255,206,86,1)', tension: 0.4, borderWidth: 2, fill: false },
-          { label: 'Low', data: low, borderColor: 'rgba(75,192,192,1)', tension: 0.4, borderWidth: 2, fill: false }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { title: { display: true, text: `Grafico di Tendenza - ${selectedProduct === 'All' ? 'Tutti i Prodotti' : selectedProduct}` } },
-        scales: { y: { beginAtZero: true } }
-      }
-    });
-  }
+        const dates = Object.keys(agg).sort();
+        const high = dates.map(d => agg[d].high);
+        const med = dates.map(d => agg[d].medium);
+        const low = dates.map(d => agg[d].low);
+        const chartTitle = `Grafico di Tendenza - ${selectedProduct === 'All' ? 'Tutti i Prodotti' : selectedProduct}`;
+
+        const ctx = document.getElementById('trendLineChart').getContext('2d');
+        if (chartTrendLines) chartTrendLines.destroy();
+
+        chartTrendLines = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [
+                    { label: 'High', data: high, borderColor: COLORS.High.border, backgroundColor: COLORS.High.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.High.border, pointHoverRadius: 7 },
+                    { label: 'Medium', data: med, borderColor: COLORS.Medium.border, backgroundColor: COLORS.Medium.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.Medium.border, pointHoverRadius: 7 },
+                    { label: 'Low', data: low, borderColor: COLORS.Low.border, backgroundColor: COLORS.Low.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.Low.border, pointHoverRadius: 7 }
+                ]
+            },
+            options: {
+                ...baseChartOptions, 
+                plugins: { ...baseChartOptions.plugins, title: { ...baseChartOptions.plugins.title, text: chartTitle } },
+                scales: {
+                    x: { ...baseChartOptions.scales.x },
+                    y: { ...baseChartOptions.scales.y, stacked: false }
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
