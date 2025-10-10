@@ -11,7 +11,7 @@
             --pa-primary: #0066cc; 
             --bg-page: #eef1f4; 
             --bg-card: white;
-            --text-dark: #1a3a5a; /* Blu scuro professionale per tutti i testi */
+            --text-dark: #1a3a5a; 
             --shadow-elevation: 0 4px 15px rgba(0, 0, 0, 0.08);
             --transition-speed: 0.3s;
 
@@ -65,7 +65,6 @@
         .tabs {
             display: flex;
             border-bottom: 2px solid #ccc;
-            /* Re-introdotto un minimo di spazio tra tab e filtri */
             margin-bottom: 10px; 
         }
 
@@ -99,7 +98,6 @@
             display: flex;
             gap: 30px;
             align-items: flex-end;
-            /* Spazio minimo sotto i filtri */
             padding: 0 0 10px 0; 
         }
 
@@ -109,7 +107,6 @@
             font-weight: 600;
             display: block;
             margin-bottom: 6px;
-            /* Usa il blu scuro professionale */
             color: var(--text-dark);
             font-size: 14px;
         }
@@ -123,11 +120,9 @@
             width: 100%;
             cursor: pointer;
             transition: border-color var(--transition-speed), box-shadow var(--transition-speed);
-            /* Imposta il colore del testo della select al blu scuro */
             color: var(--text-dark); 
         }
 
-        /* Colore delle opzioni all'interno del select (opzionale, per coerenza) */
         select option {
             color: var(--text-dark);
         }
@@ -226,23 +221,34 @@
                 }, 0);
                 return 'Totale: ' + total;
             }
-        }
+        },
+        backgroundColor: DARK_BLUE,
+        titleColor: 'white',
+        bodyColor: 'white',
+        padding: 12, 
+        boxPadding: 5,
+        titleFont: { size: 14, weight: 'bold' },
+        bodyFont: { size: 13 },
+        cornerRadius: 6,
+        displayColors: true 
     };
 
     const baseChartOptions = {
         responsive: true,
         maintainAspectRatio: false,
+        animation: {
+            duration: 1200, 
+            easing: 'easeOutQuart' 
+        },
         plugins: {
             legend: {
                 position: 'top', 
-                // Colore legenda in blu scuro
                 labels: { usePointStyle: false, padding: 25, boxWidth: 20, color: DARK_BLUE } 
             },
             title: { 
                 display: true, 
                 font: { size: 18, weight: '700' }, 
                 padding: 15, 
-                // Colore titolo in blu scuro
                 color: DARK_BLUE 
             },
             tooltip: customTooltipCallback 
@@ -251,7 +257,6 @@
             x: { 
                 grid: { display: false, drawBorder: false }, 
                 ticks: { 
-                    // Colore asse X in blu scuro
                     color: DARK_BLUE,
                     maxRotation: 45, 
                     minRotation: 45 
@@ -261,7 +266,6 @@
                 beginAtZero: true, 
                 grid: { color: 'rgba(0, 0, 0, 0.05)', borderDash: [5, 5] },
                 ticks: { 
-                    // Colore asse Y in blu scuro
                     color: DARK_BLUE
                 } 
             }
@@ -330,6 +334,16 @@
         else if (currentTab === 'aggregated') renderAggregateByDateChart();
     });
 
+    function createGradient(ctx, chartArea, colorStart, colorEnd) {
+        if (!chartArea) {
+            return colorStart;
+        }
+        const gradient = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+        gradient.addColorStop(0, colorEnd);
+        gradient.addColorStop(1, colorStart);
+        return gradient;
+    }
+
     function renderChartForDate(selectedDate) {
         if (!selectedDate) {
             if (chartInstance) chartInstance.destroy();
@@ -361,9 +375,27 @@
             data: {
                 labels,
                 datasets: [
-                    { label: 'High', data: high, backgroundColor: COLORS.High.border, stack: 'stack1', borderRadius: 4 },
-                    { label: 'Medium', data: med, backgroundColor: COLORS.Medium.border, stack: 'stack1', borderRadius: 4 },
-                    { label: 'Low', data: low, backgroundColor: COLORS.Low.border, stack: 'stack1', borderRadius: 4 }
+                    { 
+                        label: 'High', 
+                        data: high, 
+                        backgroundColor: COLORS.High.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    },
+                    { 
+                        label: 'Medium', 
+                        data: med, 
+                        backgroundColor: COLORS.Medium.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    },
+                    { 
+                        label: 'Low', 
+                        data: low, 
+                        backgroundColor: COLORS.Low.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    }
                 ]
             },
             options: {
@@ -403,9 +435,27 @@
             data: {
                 labels: dates,
                 datasets: [
-                    { label: 'High', data: high, backgroundColor: COLORS.High.border, stack: 'stack1', borderRadius: 2 },
-                    { label: 'Medium', data: med, backgroundColor: COLORS.Medium.border, stack: 'stack1', borderRadius: 2 },
-                    { label: 'Low', data: low, backgroundColor: COLORS.Low.border, stack: 'stack1', borderRadius: 2 }
+                    { 
+                        label: 'High', 
+                        data: high, 
+                        backgroundColor: COLORS.High.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    },
+                    { 
+                        label: 'Medium', 
+                        data: med, 
+                        backgroundColor: COLORS.Medium.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    },
+                    { 
+                        label: 'Low', 
+                        data: low, 
+                        backgroundColor: COLORS.Low.border, 
+                        stack: 'stack1', 
+                        borderRadius: 6 
+                    }
                 ]
             },
             options: {
@@ -445,9 +495,51 @@
             data: {
                 labels: dates,
                 datasets: [
-                    { label: 'High', data: high, borderColor: COLORS.High.border, backgroundColor: COLORS.High.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.High.border, pointHoverRadius: 7 },
-                    { label: 'Medium', data: med, borderColor: COLORS.Medium.border, backgroundColor: COLORS.Medium.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.Medium.border, pointHoverRadius: 7 },
-                    { label: 'Low', data: low, borderColor: COLORS.Low.border, backgroundColor: COLORS.Low.fill, tension: 0.4, borderWidth: 3, fill: true, pointRadius: 5, pointBackgroundColor: COLORS.Low.border, pointHoverRadius: 7 }
+                    { 
+                        label: 'High', 
+                        data: high, 
+                        borderColor: COLORS.High.border, 
+                        backgroundColor: COLORS.High.fill, 
+                        tension: 0.4, 
+                        borderWidth: 4, 
+                        fill: true, 
+                        pointRadius: 6, 
+                        pointBackgroundColor: COLORS.High.border, 
+                        pointHoverRadius: 9, 
+                        pointHoverBorderColor: 'white', 
+                        pointHoverBorderWidth: 2,
+                        pointStyle: 'circle' 
+                    },
+                    { 
+                        label: 'Medium', 
+                        data: med, 
+                        borderColor: COLORS.Medium.border, 
+                        backgroundColor: COLORS.Medium.fill, 
+                        tension: 0.4, 
+                        borderWidth: 4, 
+                        fill: true, 
+                        pointRadius: 6, 
+                        pointBackgroundColor: COLORS.Medium.border, 
+                        pointHoverRadius: 9, 
+                        pointHoverBorderColor: 'white', 
+                        pointHoverBorderWidth: 2,
+                        pointStyle: 'circle' 
+                    },
+                    { 
+                        label: 'Low', 
+                        data: low, 
+                        borderColor: COLORS.Low.border, 
+                        backgroundColor: COLORS.Low.fill, 
+                        tension: 0.4, 
+                        borderWidth: 4, 
+                        fill: true, 
+                        pointRadius: 6, 
+                        pointBackgroundColor: COLORS.Low.border, 
+                        pointHoverRadius: 9, 
+                        pointHoverBorderColor: 'white', 
+                        pointHoverBorderWidth: 2,
+                        pointStyle: 'circle' 
+                    }
                 ]
             },
             options: {
