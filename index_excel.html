@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Governance Dashboard | pagoPA</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root {
             --pa-primary: #1a3a5a; 
@@ -342,50 +343,20 @@
 
     tabs.forEach(tab => tab.addEventListener('click', () => switchTab(tab.dataset.tab)));
 
-    /**
-     * Funzione per il caricamento e l'elaborazione dei dati CSV.
-     * Assumiamo che il CSV abbia un header e che il separatore sia la virgola.
-     * I nomi delle colonne devono corrispondere a:
-     * data, prodotto, issue_high, issue_medium, issue_low, issue_dismissed
-     */
-    function loadCSVData() {
-        return fetch('dati.csv')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.text();
-            })
-            .then(csvText => {
-                const lines = csvText.trim().split('\n');
-                if (lines.length === 0) return [];
-
-                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-                
-                const data = [];
-                for (let i = 1; i < lines.length; i++) {
-                    const values = lines[i].split(',');
-                    const row = {};
-                    headers.forEach((header, index) => {
-                        row[header] = values[index] ? values[index].trim() : '';
-                    });
-                    
-                    data.push({
-                        prodotto: row.prodotto, 
-                        data: row.data,
-                        issue_high: +row.issue_high || 0,
-                        issue_medium: +row.issue_medium || 0,
-                        issue_low: +row.issue_low || 0,
-                        issue_dismissed: +row.issue_dismissed || 0 
-                    });
-                }
-                
-                return data.filter(r => r.prodotto && r.prodotto.trim() !== '');
-            });
-    }
-
-    loadCSVData()
+    fetch('Governance_Dashboard.xlsx')
+        .then(response => response.arrayBuffer())
         .then(data => {
-            allData = data;
-            
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheet = workbook.Sheets['Dati']; 
+            allData = XLSX.utils.sheet_to_json(sheet).map(r => ({
+                ...r,
+                data: String(r.data).trim(),
+                issue_high: +r.issue_high || 0,
+                issue_medium: +r.issue_medium || 0,
+                issue_low: +r.issue_low || 0,
+                issue_dismissed: +r.issue_dismissed || 0 
+            })).filter(r => r.prodotto && r.prodotto.trim() !== '');
+
             const uniqueDates = [...new Set(allData.map(r => r.data))].sort();
             
             const uniqueProducts = [...new Set(allData.map(r => r.prodotto))].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
@@ -409,7 +380,7 @@
             
             switchTab('byDate');
         })
-        .catch(error => console.error('Errore nel caricamento del file CSV:', error));
+        .catch(error => console.error('Errore nel caricamento del file Excel:', error));
 
     dateSelect.addEventListener('change', () => renderChartForDate(dateSelect.value));
     dateSelect2.addEventListener('change', () => renderDismissedByDateChart(dateSelect2.value));
@@ -716,11 +687,6 @@
                     y: { 
                         ...baseChartOptions.scales.y, 
                         stacked: false,
-                        title: {
-                            display: true,
-                            text: 'Percentuale (%)',
-                            color: DARK_BLUE
-                        },
                         ticks: {
                             callback: function(value) {
                                 return value + '%';
@@ -770,7 +736,7 @@
         const maxPercentage = Math.max(...percentages.map(Number)) || 0;
         const suggestedMax = calculateSuggestedMax(maxPercentage);
 
-        const chartTitle = `% Issue Dismissed - Data: ${selectedDate}`;
+        const chartTitle = `& Issue Dismissed - Data: ${selectedDate}`;
 
         const ctx = document.getElementById('dismissedByDateChart').getContext('2d');
         if (chartDismissedByDate) chartDismissedByDate.destroy();
