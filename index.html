@@ -349,7 +349,9 @@
      * data, prodotto, issue_high, issue_medium, issue_low, issue_dismissed
      */
     function loadCSVData() {
-        return fetch('dati.csv')
+        /*return fetch('dati.csv')*/
+        return fetch('https://drive.google.com/uc?export=download&id=1esc2eQ7bYlTW_c4D_MiXNU8g_HDcUPOY')
+
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return response.text();
